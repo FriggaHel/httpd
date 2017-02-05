@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/containous/flaeg"
 	"github.com/containous/staert"
-	fmtlog "log"
 	"os"
 	"reflect"
 )
 
 func main() {
+	log.SetFormatter(&log.JSONFormatter{})
 	webServerConfiguration := NewWebServerConfiguration()
 	webServerDefaultPointers := NewWebServerDefaultPointers()
 	webServerCmd := &flaeg.Command{
@@ -29,20 +30,16 @@ func main() {
 	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
 
 	s := staert.NewStaert(webServerCmd)
-	//toml := staert.NewTomlSource("webserver", []string{webServerConfiguration.ConfigFile, "."})
-
-	//s.AddSource(toml)
-	fmt.Println(f)
 	s.AddSource(f)
 	if _, err := s.LoadConfig(); err != nil {
-		fmt.Println(err)
-		fmt.Println("42")
+		log.Error("Error running webserver: %s\n", err)
 		os.Exit(-1)
 	}
 
 	fmt.Println(webServerConfiguration.Consul)
+	log.Info("Listening to {}:{}", webServerConfiguration.EntryPoint.Address, webServerConfiguration.EntryPoint.Port)
 	if err := s.Run(); err != nil {
-		fmtlog.Printf("Error running webserver: %s\n", err)
+		log.Error("Error running webserver: %s\n", err)
 		os.Exit(-1)
 	}
 	os.Exit(0)
