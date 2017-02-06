@@ -1,5 +1,5 @@
-hash: 1bc500bcca991295ec316862e316f4e5e70a6b15107ac3d0daf4423fc20eb4be
-updated: 2017-02-06T09:31:51.985293307+01:00
+hash: 8c80b8abbab007f134f08c5eaef737236b7a93865baa91fbc955d26ff7ef667a
+updated: 2017-02-06T14:52:46.005430015+01:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
@@ -11,6 +11,8 @@ imports:
   version: 3fce6a0f26e07da3eac45796a8e255547a47a750
   subpackages:
   - store
+- name: github.com/go-yaml/yaml
+  version: 4c78c975fe7c825c6d1466c42be594d1d6f3aba6
 - name: github.com/hashicorp/consul
   version: a90bb8f02183e12c312ddb4dfb2c7602fdbf4e12
   subpackages:
