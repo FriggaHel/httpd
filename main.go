@@ -32,20 +32,26 @@ func main() {
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)
 	if _, err := s.LoadConfig(); err != nil {
-		log.Error("Error running webserver: %s\n", err)
+		log.Error(fmt.Sprintf("Error running webserver: %s", err))
 		os.Exit(-1)
 	}
 
-	fmt.Println(webServerConfiguration.Consul)
-	log.Info("Listening to {}:{}", webServerConfiguration.EntryPoint.Address, webServerConfiguration.EntryPoint.Port)
 	if err := s.Run(); err != nil {
-		log.Error("Error running webserver: %s\n", err)
+		log.Error(fmt.Sprintf("Error running webserver: %s", err))
 		os.Exit(-1)
 	}
 	os.Exit(0)
 }
 
 func run(webServerConfiguration *WebServerConfiguration) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.WithFields(log.Fields{
+				"error_code":    42,
+				"error_message": r,
+			}).Error(fmt.Sprintf("Failed to boot: %s", r))
+		}
+	}()
 	s := NewWebServer(webServerConfiguration)
 	s.Init()
 	s.Run()

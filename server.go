@@ -2,16 +2,19 @@ package main
 
 import (
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"github.com/hashicorp/consul/api"
-	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 type WebServer struct {
+	ServiceID           string
 	Address             string
 	Port                int
 	RegisterToConsul    bool
@@ -20,12 +23,13 @@ type WebServer struct {
 	ServiceRegistration *api.AgentServiceRegistration
 	Listener            net.Listener
 	Config              *WebServerConfiguration
-	RootFolder          string
+	Server              http.Server
 	err                 error
 }
 
 func NewWebServer(s *WebServerConfiguration) *WebServer {
 	p := new(WebServer)
+	p.ServiceID = ""
 	p.Config = s
 	p.Address = s.EntryPoint.Address
 	p.Port = s.EntryPoint.Port
@@ -33,6 +37,7 @@ func NewWebServer(s *WebServerConfiguration) *WebServer {
 	p.ConsulApi = nil
 	p.ConsulAgent = nil
 	p.Listener = nil
+	p.Server = http.Server{}
 	return p
 }
 
@@ -42,7 +47,7 @@ func (server *WebServer) AddExitHook() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		for sig := range c {
-			log.Printf("captured %v, stopping profiler and exiting..", sig)
+			log.Warn(fmt.Sprintf("captured %v, exiting..", sig))
 			server.DeInit()
 			os.Exit(0)
 		}
@@ -54,8 +59,15 @@ func (server *WebServer) Init() bool {
 	if server.err != nil {
 		panic("bind failed")
 	}
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic("Unable to get Hostname")
+	}
+	server.Address = hostname
 	server.Port = server.Listener.Addr().(*net.TCPAddr).Port
-	fmt.Printf("Binded port: %d\n", server.Port)
+	log.Info(fmt.Sprintf("Listening to %s:%d", server.Config.EntryPoint.Address, server.Port))
+	// Init Name
+	server.ServiceID = fmt.Sprintf("%s-%d-%s", server.Config.ServiceName, server.Port, server.GenerateUniqueID())
 	if server.RegisterToConsul == true {
 		server.RegisterConsul()
 	}
@@ -64,20 +76,29 @@ func (server *WebServer) Init() bool {
 }
 
 func (server *WebServer) RegisterConsul() bool {
+	// Bind HealthCheck
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "I'm OK !")
+	})
+
 	server.ConsulApi, server.err = api.NewClient(api.DefaultConfig())
 	if server.err != nil {
-		panic("unable to connect to consul")
+		panic("Unable to connect to consul")
 	}
 	server.ConsulAgent = server.ConsulApi.Agent()
-
 	server.ServiceRegistration = &api.AgentServiceRegistration{
-		ID:                "support-4242",
+		ID:                server.ServiceID,
 		Name:              server.Config.ServiceName,
 		Tags:              server.Config.Consul.Tags,
 		Port:              server.Port,
 		Address:           server.Address,
 		EnableTagOverride: false,
-		Checks:            []*api.AgentServiceCheck{}}
+		Check: &api.AgentServiceCheck{
+			Interval: "10s",
+			Timeout:  "1s",
+			HTTP:     fmt.Sprintf("http://%s:%d/health", server.Address, server.Port),
+			DeregisterCriticalServiceAfter: "15m",
+		}}
 
 	err := server.ConsulAgent.ServiceRegister(server.ServiceRegistration)
 	if err != nil {
@@ -87,8 +108,11 @@ func (server *WebServer) RegisterConsul() bool {
 }
 
 func (server *WebServer) Run() {
-	fmt.Println(server.RootFolder)
-	srv := http.Serve(server.Listener, http.FileServer(http.Dir(server.RootFolder)))
+	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
+	// Handle Static stuff
+	http.Handle("/", http.FileServer(http.Dir(server.Config.RootFolder)))
+	// Serve
+	srv := server.Server.Serve(server.Listener)
 	panic(srv)
 }
 
@@ -101,4 +125,15 @@ func (server *WebServer) UnregisterFromConsul() {
 func (server *WebServer) DeInit() {
 	server.UnregisterFromConsul()
 	server.Listener.Close()
+}
+
+func (server *WebServer) GenerateUniqueID() string {
+	rand.Seed(time.Now().UnixNano())
+	letters := "abcdef0123456789"
+
+	b := make([]byte, 16)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
 }
