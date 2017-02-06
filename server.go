@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -80,15 +81,6 @@ func (server *WebServer) Init() bool {
 		server.Config.Consul.Tags = NewTagsFetcher(server.Config.Consul, server.Config.TagsOrigin).Tags()
 	}
 
-	// AngularMode
-	if server.Config.AngularMode == true {
-		server.RegexAngularMode, err = regexp.Compile("^/([^/]+)\\.((ttf|eot|svg|js|woff2|map|ico)(\\?.*)?)")
-		if err != nil {
-			panic("Unable to enable AngularMode")
-		}
-		log.Info("Enabling AngularMode")
-	}
-
 	if server.RegisterToConsul == true {
 		server.RegisterConsul()
 	}
@@ -143,8 +135,12 @@ func (server *WebServer) Run() {
 
 	// Handle Static stuff
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if server.RegexAngularMode != nil && server.RegexAngularMode.MatchString(r.URL.Path) == false {
-			r.URL.Path = "/"
+		if server.Config.AngularMode {
+			rx, err := regexp.MatchString("^/([^/]+)\\.((ttf|eot|svg|js|woff2|map|ico)(\\?.*)?)", r.URL.Path)
+
+			if !strings.HasPrefix(r.URL.Path, "/app/") && !strings.HasPrefix(r.URL.Path, "/assets/") && err == nil && rx == false {
+				r.URL.Path = "/"
+			}
 		}
 		srw := &StatusResponseWriter{ResponseWriter: w}
 		server.FileServer.ServeHTTP(srw, r)
