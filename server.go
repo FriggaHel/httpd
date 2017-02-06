@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"syscall"
 	"time"
 )
@@ -25,6 +26,7 @@ type WebServer struct {
 	Config              *WebServerConfiguration
 	Server              http.Server
 	FileServer          http.Handler
+	RegexAngularMode    *regexp.Regexp
 	err                 error
 }
 
@@ -40,6 +42,7 @@ func NewWebServer(s *WebServerConfiguration) *WebServer {
 	p.Listener = nil
 	p.Server = http.Server{}
 	p.FileServer = nil
+	p.RegexAngularMode = nil
 	return p
 }
 
@@ -75,6 +78,15 @@ func (server *WebServer) Init() bool {
 	// Fetch Tags
 	if server.Config.TagsOrigin.Enabled == true {
 		server.Config.Consul.Tags = NewTagsFetcher(server.Config.Consul, server.Config.TagsOrigin).Tags()
+	}
+
+	// AngularMode
+	if server.Config.AngularMode == true {
+		server.RegexAngularMode, err = regexp.Compile("^/([^/]+)\\.((ttf|eot|svg|js|woff2|map|ico)(\\?.*)?)")
+		if err != nil {
+			panic("Unable to enable AngularMode")
+		}
+		log.Info("Enabling AngularMode")
 	}
 
 	if server.RegisterToConsul == true {
@@ -128,8 +140,12 @@ func (server *WebServer) RegisterConsul() bool {
 
 func (server *WebServer) Run() {
 	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
+
 	// Handle Static stuff
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if server.RegexAngularMode != nil && server.RegexAngularMode.MatchString(r.URL.Path) == false {
+			r.URL.Path = "/"
+		}
 		srw := &StatusResponseWriter{ResponseWriter: w}
 		server.FileServer.ServeHTTP(srw, r)
 		log.WithFields(log.Fields{

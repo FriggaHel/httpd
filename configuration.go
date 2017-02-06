@@ -14,6 +14,7 @@ type WebServerConfiguration struct {
 
 type GlobalConfiguration struct {
 	Debug       bool        `description:"Enable Debug"`
+	AngularMode bool        `description:"AngularMode Debug"`
 	LogLevel    string      `description:"Log level"`
 	EntryPoint  *EntryPoint `description:"EntryPoint"`
 	RootFolder  string      `description:"RootFolder"`
@@ -154,8 +155,9 @@ type FetchedTags struct {
 func NewWebServerConfiguration() *WebServerConfiguration {
 	return &WebServerConfiguration{
 		GlobalConfiguration: GlobalConfiguration{
-			Debug:    true,
-			LogLevel: "DEBUG",
+			Debug:       true,
+			AngularMode: true,
+			LogLevel:    "DEBUG",
 			EntryPoint: &EntryPoint{
 				Address: "0.0.0.0",
 				Port:    0,
@@ -200,6 +202,7 @@ func NewWebServerDefaultPointers() *WebServerConfiguration {
 	}
 
 	defaultConfiguration := GlobalConfiguration{
+		AngularMode: true,
 		EntryPoint:  &entryPoint,
 		RootFolder:  "/var/www/html",
 		ServiceName: "unknown",
