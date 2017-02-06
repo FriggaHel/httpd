@@ -10,7 +10,13 @@ import (
 )
 
 func main() {
-	log.SetFormatter(&log.JSONFormatter{})
+	log.SetFormatter(&log.JSONFormatter{
+		FieldMap: log.FieldMap{
+			log.FieldKeyLevel: "level",
+			log.FieldKeyMsg:   "message",
+			log.FieldKeyTime:  "@timestamp",
+		},
+	})
 	webServerConfiguration := NewWebServerConfiguration()
 	webServerDefaultPointers := NewWebServerDefaultPointers()
 	webServerCmd := &flaeg.Command{

@@ -1,5 +1,5 @@
-hash: 8c80b8abbab007f134f08c5eaef737236b7a93865baa91fbc955d26ff7ef667a
-updated: 2017-02-06T14:52:46.005430015+01:00
+hash: 53c33a4748cc9bf0a9b797fa7f0933d01c204d69d34d2ac9e717786f5436f354
+updated: 2017-02-06T16:08:57.985363995+01:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
@@ -28,7 +28,7 @@ imports:
 - name: github.com/ogier/pflag
   version: 45c278ab3607870051a2ea9040bb85fcb8557481
 - name: github.com/Sirupsen/logrus
-  version: d26492970760ca5d33129d2d799e34be5c4782eb
+  version: 881bee4e20a5d11a6a88a5667c6f292072ac1963
 - name: golang.org/x/sys
   version: eb2c74142fd19a79b3f237334c7384d5167b1b46
   subpackages:
