@@ -28,6 +28,7 @@ func main() {
 	f.AddParser(reflect.TypeOf(EntryPoint{}), &EntryPoint{})
 	f.AddParser(reflect.TypeOf(ConsulConf{}), &ConsulConf{})
 	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
+	f.AddParser(reflect.TypeOf(TagsOrigin{}), &TagsOrigin{})
 
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)

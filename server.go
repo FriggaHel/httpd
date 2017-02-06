@@ -24,6 +24,7 @@ type WebServer struct {
 	Listener            net.Listener
 	Config              *WebServerConfiguration
 	Server              http.Server
+	FileServer          http.Handler
 	err                 error
 }
 
@@ -38,6 +39,7 @@ func NewWebServer(s *WebServerConfiguration) *WebServer {
 	p.ConsulAgent = nil
 	p.Listener = nil
 	p.Server = http.Server{}
+	p.FileServer = nil
 	return p
 }
 
@@ -66,23 +68,40 @@ func (server *WebServer) Init() bool {
 	server.Address = hostname
 	server.Port = server.Listener.Addr().(*net.TCPAddr).Port
 	log.Info(fmt.Sprintf("Listening to %s:%d", server.Config.EntryPoint.Address, server.Port))
+
 	// Init Name
 	server.ServiceID = fmt.Sprintf("%s-%d-%s", server.Config.ServiceName, server.Port, server.GenerateUniqueID())
+
+	// Fetch Tags
+	if server.Config.TagsOrigin.Enabled == true {
+		server.Config.Consul.Tags = NewTagsFetcher(server.Config.Consul, server.Config.TagsOrigin).Tags()
+	}
+
 	if server.RegisterToConsul == true {
 		server.RegisterConsul()
 	}
 	server.AddExitHook()
+
+	// Static file server
+	server.FileServer = http.FileServer(http.Dir(server.Config.RootFolder))
 	return true
 }
 
 func (server *WebServer) RegisterConsul() bool {
+	var err error = nil
+
 	// Bind HealthCheck
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "I'm OK !")
 	})
 
-	server.ConsulApi, server.err = api.NewClient(api.DefaultConfig())
-	if server.err != nil {
+	for _, t := range server.Config.Consul.Tags {
+		log.Info(fmt.Sprintf("Adding tag: %s", t))
+	}
+
+	// Register to Consul
+	server.ConsulApi, err = api.NewClient(api.DefaultConfig())
+	if err != nil {
 		panic("Unable to connect to consul")
 	}
 	server.ConsulAgent = server.ConsulApi.Agent()
@@ -100,7 +119,7 @@ func (server *WebServer) RegisterConsul() bool {
 			DeregisterCriticalServiceAfter: "15m",
 		}}
 
-	err := server.ConsulAgent.ServiceRegister(server.ServiceRegistration)
+	err = server.ConsulAgent.ServiceRegister(server.ServiceRegistration)
 	if err != nil {
 		panic("Unable to register to Consul")
 	}
@@ -110,7 +129,18 @@ func (server *WebServer) RegisterConsul() bool {
 func (server *WebServer) Run() {
 	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
 	// Handle Static stuff
-	http.Handle("/", http.FileServer(http.Dir(server.Config.RootFolder)))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		srw := &StatusResponseWriter{ResponseWriter: w}
+		server.FileServer.ServeHTTP(srw, r)
+		log.WithFields(log.Fields{
+			"status":      srw.status,
+			"path":        r.RequestURI,
+			"method":      r.Method,
+			"proto":       r.Proto,
+			"remote-addr": r.RemoteAddr,
+		}).Info(fmt.Sprintf("[%d] %s", srw.status, r.RequestURI))
+	})
+
 	// Serve
 	srv := server.Server.Serve(server.Listener)
 	panic(srv)

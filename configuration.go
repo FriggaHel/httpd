@@ -19,6 +19,42 @@ type GlobalConfiguration struct {
 	RootFolder  string      `description:"RootFolder"`
 	ServiceName string      `description:"ServiceName"`
 	Consul      *ConsulConf `description:"All config around consul"`
+	TagsOrigin  *TagsOrigin `description:"Configuration of origin of tags (overrides commandlinet tags)"`
+}
+
+// Tags Origin
+type TagsOrigin struct {
+	Enabled     bool   `description:"Enable fetching tags across another service"`
+	ServiceName string `description:"Service to contact"`
+	Path        string `description:"File to fetch"`
+	IsFatal     bool   `description:"Abort if unable to fetch tags"`
+}
+
+func (to *TagsOrigin) Get() interface{} {
+	return to
+}
+
+func (to *TagsOrigin) Set(s string) error {
+	st := strings.Split(s, ":")
+	enable, err := strconv.ParseBool(st[0])
+	if err != nil {
+		to.Enabled = enable
+	}
+	to.ServiceName = st[1]
+	to.Path = st[2]
+	fatal, err := strconv.ParseBool(st[3])
+	if err != nil {
+		to.IsFatal = fatal
+	}
+	return nil
+}
+
+func (to *TagsOrigin) String() string {
+	return fmt.Sprintf("%+v", *to)
+}
+
+func (to *TagsOrigin) SetValue(val interface{}) {
+	*to = TagsOrigin(val.(TagsOrigin))
 }
 
 // Consul Config
@@ -79,7 +115,7 @@ func (t *ConsulTags) SetValue(val interface{}) {
 }
 
 func (t *ConsulTags) String() string {
-	return fmt.Sprint("%+v", *t)
+	return fmt.Sprintf("%+v", *t)
 }
 
 // EntryPoint
@@ -110,6 +146,11 @@ func (ep *EntryPoint) SetValue(val interface{}) {
 	*ep = EntryPoint(val.(EntryPoint))
 }
 
+// Tags Fetched
+type FetchedTags struct {
+	Tags ConsulTags `yaml:"tags"`
+}
+
 func NewWebServerConfiguration() *WebServerConfiguration {
 	return &WebServerConfiguration{
 		GlobalConfiguration: GlobalConfiguration{
@@ -126,6 +167,12 @@ func NewWebServerConfiguration() *WebServerConfiguration {
 				Host:     "127.0.0.1",
 				Port:     8500,
 				Tags:     []string{"traefik.enable=false"},
+			},
+			TagsOrigin: &TagsOrigin{
+				Enabled:     false,
+				ServiceName: "config",
+				Path:        "/unkown/config.yml",
+				IsFatal:     true,
 			},
 		},
 		ConfigFile: "",
@@ -145,11 +192,19 @@ func NewWebServerDefaultPointers() *WebServerConfiguration {
 		Tags:     []string{"traefik.enable=false"},
 	}
 
+	var tags = TagsOrigin{
+		Enabled:     false,
+		ServiceName: "config",
+		Path:        "/unkown/config.yml",
+		IsFatal:     true,
+	}
+
 	defaultConfiguration := GlobalConfiguration{
 		EntryPoint:  &entryPoint,
 		RootFolder:  "/var/www/html",
 		ServiceName: "unknown",
 		Consul:      &consul,
+		TagsOrigin:  &tags,
 	}
 
 	return &WebServerConfiguration{
