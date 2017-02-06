@@ -1,0 +1,34 @@
+hash: 1bc500bcca991295ec316862e316f4e5e70a6b15107ac3d0daf4423fc20eb4be
+updated: 2017-02-06T09:31:51.985293307+01:00
+imports:
+- name: github.com/BurntSushi/toml
+  version: 99064174e013895bbd9b025c31100bd1d9b590ca
+- name: github.com/containous/flaeg
+  version: a731c034dda967333efce5f8d276aeff11f8ff87
+- name: github.com/containous/staert
+  version: 1e26a71803e428fd933f5f9c8e50a26878f53147
+- name: github.com/docker/libkv
+  version: 3fce6a0f26e07da3eac45796a8e255547a47a750
+  subpackages:
+  - store
+- name: github.com/hashicorp/consul
+  version: a90bb8f02183e12c312ddb4dfb2c7602fdbf4e12
+  subpackages:
+  - api
+- name: github.com/hashicorp/go-cleanhttp
+  version: ad28ea4487f05916463e2423a55166280e8254b5
+- name: github.com/hashicorp/serf
+  version: b03bf85930b2349eb04b97c8fac437495296e3e7
+  subpackages:
+  - coordinate
+- name: github.com/mitchellh/mapstructure
+  version: f3009df150dadf309fdee4a54ed65c124afad715
+- name: github.com/ogier/pflag
+  version: 45c278ab3607870051a2ea9040bb85fcb8557481
+- name: github.com/Sirupsen/logrus
+  version: d26492970760ca5d33129d2d799e34be5c4782eb
+- name: golang.org/x/sys
+  version: eb2c74142fd19a79b3f237334c7384d5167b1b46
+  subpackages:
+  - unix
+testImports: []
