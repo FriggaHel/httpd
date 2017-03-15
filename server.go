@@ -63,16 +63,32 @@ func (server *WebServer) AddExitHook() {
 	}()
 }
 
-func (server *WebServer) Init() bool {
-	server.Listener, server.err = net.Listen("tcp", fmt.Sprintf(":%d", server.Port))
-	if server.err != nil {
-		panic("bind failed")
+func (server *WebServer) GetExposedIpAddress() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		panic("Unable to get IPs")
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
 	}
 	hostname, err := os.Hostname()
 	if err != nil {
 		panic("Unable to get Hostname")
 	}
-	server.Address = hostname
+	return hostname
+}
+
+func (server *WebServer) Init() bool {
+	server.Listener, server.err = net.Listen("tcp", fmt.Sprintf(":%d", server.Port))
+	if server.err != nil {
+		panic("bind failed")
+	}
+
+	server.Address = server.GetExposedIpAddress()
 	server.Port = server.Listener.Addr().(*net.TCPAddr).Port
 	log.Info(fmt.Sprintf("Listening to %s:%d", server.Config.EntryPoint.Address, server.Port))
 
@@ -99,7 +115,9 @@ func (server *WebServer) RegisterConsul() bool {
 
 	// Bind HealthCheck
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "I'm OK !")
+		srw := &StatusResponseWriter{ResponseWriter: w}
+		srw.WriteHeader(200)
+		fmt.Fprintf(srw, "I'm OK !")
 	})
 
 	for _, t := range server.Config.Consul.Tags {
