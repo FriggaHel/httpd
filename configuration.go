@@ -23,6 +23,47 @@ type GlobalConfiguration struct {
 	Consul      *ConsulConf  `description:"All config around consul"`
 	TagsOrigin  *TagsOrigin  `description:"Configuration of origin of tags (overrides commandlinet tags)"`
 	ProxyRoutes []ProxyRoute `description:"Path to proxify (ex: /api/)"`
+	PreInitCmd  []PreInitCmd `description:"PreInit commands to run before serving"`
+}
+
+// PreInitCmds
+type PreInitCmdsValue []PreInitCmd
+
+func (p *PreInitCmdsValue) Get() interface{} {
+	return p
+}
+
+func (p *PreInitCmdsValue) Set(s string) error {
+	*p = append(*p, PreInitCmd{
+		Command: s,
+	})
+	return nil
+}
+
+func (p *PreInitCmdsValue) SetValue(val interface{}) {
+	*p = PreInitCmdsValue(val.([]PreInitCmd))
+}
+
+func (p *PreInitCmdsValue) String() string {
+	return fmt.Sprintf("%+v", *p)
+}
+
+// PreInitCmd
+type PreInitCmd struct {
+	Command string
+}
+
+func (p *PreInitCmd) Get() interface{} {
+	return p
+}
+
+func (p *PreInitCmd) Set(s string) error {
+	p.Command = s
+	return nil
+}
+
+func (p *PreInitCmd) String() string {
+	return p.Command
 }
 
 // Proxy Routes
@@ -281,7 +322,6 @@ func NewWebServerDefaultPointers() *WebServerConfiguration {
 		ServiceName: "unknown",
 		Consul:      &consul,
 		TagsOrigin:  &tags,
-		ProxyRoutes: nil,
 	}
 
 	return &WebServerConfiguration{
