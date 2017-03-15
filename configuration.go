@@ -13,14 +13,70 @@ type WebServerConfiguration struct {
 }
 
 type GlobalConfiguration struct {
-	Debug       bool        `description:"Enable Debug"`
-	AngularMode bool        `description:"AngularMode Debug"`
-	LogLevel    string      `description:"Log level"`
-	EntryPoint  *EntryPoint `description:"EntryPoint"`
-	RootFolder  string      `description:"RootFolder"`
-	ServiceName string      `description:"ServiceName"`
-	Consul      *ConsulConf `description:"All config around consul"`
-	TagsOrigin  *TagsOrigin `description:"Configuration of origin of tags (overrides commandlinet tags)"`
+	Debug       bool         `description:"Enable Debug"`
+	AngularMode bool         `description:"AngularMode Debug"`
+	LogLevel    string       `description:"Log level"`
+	EntryPoint  *EntryPoint  `description:"EntryPoint"`
+	RootFolder  string       `description:"RootFolder"`
+	ServiceName string       `description:"ServiceName"`
+	Consul      *ConsulConf  `description:"All config around consul"`
+	TagsOrigin  *TagsOrigin  `description:"Configuration of origin of tags (overrides commandlinet tags)"`
+	ProxyRoutes []ProxyRoute `description:"Path to proxify (ex: /api/)"`
+}
+
+// Proxy Routes
+type ProxyRoute struct {
+	Path       string `description:"Path to proxify"`
+	Scheme     string `description:"Scheme for backend"`
+	Host       string `description:"Backend Hostname"`
+	StripPath  bool   `description:"Strip Path before forwarding to backend"`
+	PrefixPath string `description:"Add prefix to backend URI"`
+}
+
+func (pr *ProxyRoute) Get() interface{} {
+	return pr
+}
+
+func (pr *ProxyRoute) Set(s string) error {
+	segs := strings.Split(s, "|")
+	pr.Path = segs[0]
+	pr.Scheme = segs[1]
+	pr.Host = segs[2]
+	pr.StripPath = true
+	pr.PrefixPath = ""
+	return nil
+}
+
+func (to *ProxyRoute) String() string {
+	return fmt.Sprintf("%+v", *to)
+}
+
+// Proxy Routes
+type ProxyRoutesValue []ProxyRoute
+
+func (pr *ProxyRoutesValue) Get() interface{} {
+	return pr
+}
+
+func (pr *ProxyRoutesValue) Set(s string) error {
+	segs := strings.Split(s, "|")
+	r := ProxyRoute{
+		Path:       segs[0],
+		Scheme:     segs[1],
+		Host:       segs[2],
+		StripPath:  true,
+		PrefixPath: "",
+	}
+	*pr = append(*pr, r)
+	return nil
+}
+
+func (to *ProxyRoutesValue) String() string {
+	return fmt.Sprintf("%+v", *to)
+}
+
+func (to *ProxyRoutesValue) SetValue(val interface{}) {
+	*to = ProxyRoutesValue(val.([]ProxyRoute))
 }
 
 // Tags Origin
@@ -208,6 +264,7 @@ func NewWebServerDefaultPointers() *WebServerConfiguration {
 		ServiceName: "unknown",
 		Consul:      &consul,
 		TagsOrigin:  &tags,
+		ProxyRoutes: nil,
 	}
 
 	return &WebServerConfiguration{

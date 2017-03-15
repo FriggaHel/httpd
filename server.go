@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	//	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -29,6 +31,7 @@ type WebServer struct {
 	FileServer          http.Handler
 	RegexAngularMode    *regexp.Regexp
 	err                 error
+	Proxies             map[string]*httputil.ReverseProxy
 }
 
 func NewWebServer(s *WebServerConfiguration) *WebServer {
@@ -44,6 +47,7 @@ func NewWebServer(s *WebServerConfiguration) *WebServer {
 	p.Server = http.Server{}
 	p.FileServer = nil
 	p.RegexAngularMode = nil
+	p.Proxies = make(map[string]*httputil.ReverseProxy)
 	return p
 }
 
@@ -131,10 +135,36 @@ func (server *WebServer) RegisterConsul() bool {
 }
 
 func (server *WebServer) Run() {
-	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
+	// Prepare Proxified stuff
+	for _, pr := range server.Config.ProxyRoutes {
+		d := &httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				newUrl := req.URL.Path
+				if pr.StripPath {
+					newUrl = req.URL.Path[len(pr.Path):len(req.URL.Path)]
+				}
+				log.Info(fmt.Sprintf("[proxy] %s to %s://%s/%s", req.URL.Path, pr.Scheme, pr.Host, newUrl))
+				req.URL.Path = newUrl
+				req.URL.Scheme = pr.Scheme
+				req.URL.Host = pr.Host
+			},
+		}
+		server.Proxies[pr.Path] = d
+		log.Info(fmt.Sprintf("[proxy] %s will be forworded to %s://%s/", pr.Path, pr.Scheme, pr.Host))
+	}
 
 	// Handle Static stuff
+	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Check for Proxies
+		for k, v := range server.Proxies {
+			if strings.HasPrefix(r.URL.Path, k) {
+				v.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// End on angular
 		if server.Config.AngularMode {
 			rx, err := regexp.MatchString("^/([^/]+)\\.((ttf|eot|svg|js|woff2|map|ico)(\\?.*)?)", r.URL.Path)
 

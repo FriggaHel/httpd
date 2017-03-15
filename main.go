@@ -35,6 +35,7 @@ func main() {
 	f.AddParser(reflect.TypeOf(ConsulConf{}), &ConsulConf{})
 	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
 	f.AddParser(reflect.TypeOf(TagsOrigin{}), &TagsOrigin{})
+	f.AddParser(reflect.TypeOf([]ProxyRoute{}), &ProxyRoutesValue{})
 
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)
