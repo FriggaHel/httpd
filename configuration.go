@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	log "github.com/Sirupsen/logrus"
 	"strconv"
 	"strings"
 )
@@ -39,11 +40,19 @@ func (pr *ProxyRoute) Get() interface{} {
 
 func (pr *ProxyRoute) Set(s string) error {
 	segs := strings.Split(s, "|")
+	if len(segs) != 5 {
+		log.Warning(fmt.Sprintf("Invalid format of ProxyRoute: Expected 5 chunks, got %d", len(segs)))
+		panic("Invalid format of ProxyRoute")
+	}
+	stripPath, err := strconv.ParseBool(segs[3])
+	if err != nil {
+		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", segs[0]))
+	}
 	pr.Path = segs[0]
 	pr.Scheme = segs[1]
 	pr.Host = segs[2]
-	pr.StripPath = true
-	pr.PrefixPath = ""
+	pr.StripPath = stripPath
+	pr.PrefixPath = segs[4]
 	return nil
 }
 
@@ -60,12 +69,20 @@ func (pr *ProxyRoutesValue) Get() interface{} {
 
 func (pr *ProxyRoutesValue) Set(s string) error {
 	segs := strings.Split(s, "|")
+	if len(segs) != 5 {
+		log.Warning(fmt.Sprintf("Invalid format of ProxyRoute: Expected 5 chunks, got %d", len(segs)))
+		panic("Invalid format of ProxyRoute")
+	}
+	stripPath, err := strconv.ParseBool(segs[3])
+	if err != nil {
+		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", segs[0]))
+	}
 	r := ProxyRoute{
 		Path:       segs[0],
 		Scheme:     segs[1],
 		Host:       segs[2],
-		StripPath:  true,
-		PrefixPath: "",
+		StripPath:  stripPath,
+		PrefixPath: segs[4],
 	}
 	*pr = append(*pr, r)
 	return nil

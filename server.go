@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	//	"net/url"
 	"os"
 	"os/signal"
 	"regexp"
@@ -143,6 +142,9 @@ func (server *WebServer) Run() {
 				if pr.StripPath {
 					newUrl = req.URL.Path[len(pr.Path):len(req.URL.Path)]
 				}
+				if pr.PrefixPath != "" {
+					newUrl = pr.PrefixPath + newUrl
+				}
 				log.Info(fmt.Sprintf("[proxy] %s to %s://%s/%s", req.URL.Path, pr.Scheme, pr.Host, newUrl))
 				req.URL.Path = newUrl
 				req.URL.Scheme = pr.Scheme
@@ -150,42 +152,48 @@ func (server *WebServer) Run() {
 			},
 		}
 		server.Proxies[pr.Path] = d
-		log.Info(fmt.Sprintf("[proxy] %s will be forworded to %s://%s/", pr.Path, pr.Scheme, pr.Host))
+		log.Info(fmt.Sprintf("[proxy] %s will be forworded to %s://%s/%s", pr.Path, pr.Scheme, pr.Host, pr.PrefixPath))
 	}
 
 	// Handle Static stuff
 	log.Info(fmt.Sprintf("Serving %s", server.Config.RootFolder))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		srw := &StatusResponseWriter{ResponseWriter: w}
+		defer func() {
+			server.LogResponse(srw, r)
+		}()
+
 		// Check for Proxies
 		for k, v := range server.Proxies {
 			if strings.HasPrefix(r.URL.Path, k) {
-				v.ServeHTTP(w, r)
+				v.ServeHTTP(srw, r)
 				return
 			}
 		}
 
-		// End on angular
+		// Failback on Static Files
 		if server.Config.AngularMode {
 			rx, err := regexp.MatchString("^/([^/]+)\\.((ttf|eot|svg|js|woff2|map|ico)(\\?.*)?)", r.URL.Path)
-
 			if !strings.HasPrefix(r.URL.Path, "/app/") && !strings.HasPrefix(r.URL.Path, "/assets/") && err == nil && rx == false {
 				r.URL.Path = "/"
 			}
 		}
-		srw := &StatusResponseWriter{ResponseWriter: w}
 		server.FileServer.ServeHTTP(srw, r)
-		log.WithFields(log.Fields{
-			"status":      srw.status,
-			"path":        r.RequestURI,
-			"method":      r.Method,
-			"proto":       r.Proto,
-			"remote-addr": r.RemoteAddr,
-		}).Info(fmt.Sprintf("[%d] %s", srw.status, r.RequestURI))
 	})
 
 	// Serve
 	srv := server.Server.Serve(server.Listener)
 	panic(srv)
+}
+
+func (server *WebServer) LogResponse(srw *StatusResponseWriter, r *http.Request) {
+	log.WithFields(log.Fields{
+		"status":      srw.status,
+		"path":        r.RequestURI,
+		"method":      r.Method,
+		"proto":       r.Proto,
+		"remote-addr": r.RemoteAddr,
+	}).Info(fmt.Sprintf("[%d] %s", srw.status, r.RequestURI))
 }
 
 func (server *WebServer) UnregisterFromConsul() {
