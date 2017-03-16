@@ -4,7 +4,7 @@ SRCS = configuration.go httpd.go server.go status_response_writer.go tags_fetche
 VERSION = $(shell git rev-parse HEAD)
 CODENAME = "Soyouz"
 DATE = $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')
-REPO_OWNER = "FriggaHel"
+REPO_OWNER = "wingz-inc"
 REPO_NAME = "httpd"
 
 dockerimage: httpd
