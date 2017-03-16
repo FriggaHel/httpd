@@ -95,11 +95,6 @@ func (server *WebServer) Init() bool {
 	// Init Name
 	server.ServiceID = fmt.Sprintf("%s-%d-%s", server.Config.ServiceName, server.Port, server.GenerateUniqueID())
 
-	// Fetch Tags
-	if server.Config.TagsOrigin.Enabled == true {
-		server.Config.Consul.Tags = NewTagsFetcher(server.Config.Consul, server.Config.TagsOrigin).Tags()
-	}
-
 	if server.RegisterToConsul == true {
 		server.RegisterConsul()
 	}
@@ -120,8 +115,9 @@ func (server *WebServer) RegisterConsul() bool {
 		fmt.Fprintf(srw, "I'm OK !")
 	})
 
-	for _, t := range server.Config.Consul.Tags {
-		log.Info(fmt.Sprintf("Adding tag: %s", t))
+	// Dumping tags
+	for _, v := range server.Config.ConsulTags {
+		log.Info(fmt.Sprintf("[consul] Tag: %s", v))
 	}
 
 	// Register to Consul
@@ -133,7 +129,7 @@ func (server *WebServer) RegisterConsul() bool {
 	server.ServiceRegistration = &api.AgentServiceRegistration{
 		ID:                server.ServiceID,
 		Name:              server.Config.ServiceName,
-		Tags:              server.Config.Consul.Tags,
+		Tags:              server.Config.ConsulTags,
 		Port:              server.Port,
 		Address:           server.Address,
 		EnableTagOverride: false,
@@ -146,14 +142,16 @@ func (server *WebServer) RegisterConsul() bool {
 
 	err = server.ConsulAgent.ServiceRegister(server.ServiceRegistration)
 	if err != nil {
+		log.Warning(err)
 		panic("Unable to register to Consul")
 	}
+	log.Info("Registered to consul")
 	return true
 }
 
 func (server *WebServer) Run() {
 	// Prepare Proxified stuff
-	for k, pr := range server.Config.ProxyRoutes {
+	for k, pr := range server.Config.RouteMappings {
 		d := &httputil.ReverseProxy{
 			Director: func(req *http.Request) {
 				newUrl := req.URL.Path

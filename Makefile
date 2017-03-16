@@ -1,6 +1,6 @@
 .PHONY: all
 
-SRCS = configuration.go main.go server.go status_response_writer.go tags_fetcher.go
+SRCS = configuration.go httpd.go server.go status_response_writer.go tags_fetcher.go
 VERSION = $(shell git rev-parse HEAD)
 CODENAME = "Soyouz"
 DATE = $(shell date -u '+%Y-%m-%d_%I:%M:%S%p')

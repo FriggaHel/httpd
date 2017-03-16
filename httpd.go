@@ -37,10 +37,10 @@ func main() {
 	f := flaeg.New(webServerCmd, os.Args[1:])
 	f.AddParser(reflect.TypeOf(EntryPoint{}), &EntryPoint{})
 	f.AddParser(reflect.TypeOf(ConsulConf{}), &ConsulConf{})
-	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
-	f.AddParser(reflect.TypeOf(TagsOrigin{}), &TagsOrigin{})
-	f.AddParser(reflect.TypeOf(ProxyRoutes{}), &ProxyRoutes{})
+	f.AddParser(reflect.TypeOf(ConfigOrigin{}), &ConfigOrigin{})
 	f.AddParser(reflect.TypeOf(PreInitCmds{}), &PreInitCmds{})
+	f.AddParser(reflect.TypeOf(RouteMappings{}), &RouteMappings{})
+	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
 
 	toml := staert.NewTomlSource("httpd", []string{"/etc/", "."})
 
@@ -68,6 +68,18 @@ func run(webServerConfiguration *WebServerConfiguration) {
 			}).Error(fmt.Sprintf("Failed to boot: %s", r))
 		}
 	}()
+
+	// Load config from ConfigServer
+	if webServerConfiguration.ConfigOrigin.Enabled == true {
+		cfg := NewConfigFetcher(webServerConfiguration.Consul, webServerConfiguration.ConfigOrigin).Config()
+		for k, v := range cfg.Proxies {
+			webServerConfiguration.RouteMappings[k] = v
+		}
+		for _, v := range cfg.Tags {
+			webServerConfiguration.ConsulTags = append(webServerConfiguration.ConsulTags, v)
+		}
+	}
+
 	for _, x := range webServerConfiguration.PreInitCmds {
 		log.Info(fmt.Sprintf("[pre-init] Running '%s'", x.Command))
 		params := strings.Split(x.Command, " ")
