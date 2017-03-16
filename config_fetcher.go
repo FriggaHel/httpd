@@ -17,7 +17,10 @@ func (cf *ConfigFetcher) Config() RemoteConfig {
 		cf.ConsulConf.Port))
 
 	// Connect to consul
-	cf.ConsulApi, err = api.NewClient(api.DefaultConfig())
+	cf.ConsulApi, err = api.NewClient(&api.Config{
+		Address: fmt.Sprintf("%s:%d", cf.ConsulConf.Host, cf.ConsulConf.Port),
+		Scheme:  "http",
+	})
 	if err != nil {
 		panic("Unable to connect to consul")
 	}
@@ -27,6 +30,7 @@ func (cf *ConfigFetcher) Config() RemoteConfig {
 	svcs, _, err := cf.Catalog.Service(cf.ConfigOrigin.ServiceName, "", nil)
 	if err != nil {
 		if cf.ConfigOrigin.IsFatal == true {
+			log.Warn(err)
 			panic("Unable to get catalog")
 		} else {
 			log.Warn(fmt.Sprintf("Unable to get catalog for service [%s]", cf.ConfigOrigin.ServiceName))

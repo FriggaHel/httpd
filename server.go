@@ -121,7 +121,10 @@ func (server *WebServer) RegisterConsul() bool {
 	}
 
 	// Register to Consul
-	server.ConsulApi, err = api.NewClient(api.DefaultConfig())
+	server.ConsulApi, err = api.NewClient(&api.Config{
+		Address: fmt.Sprintf("%s:%d", server.Config.Consul.Host, server.Config.Consul.Port),
+		Scheme:  "http",
+	})
 	if err != nil {
 		panic("Unable to connect to consul")
 	}
