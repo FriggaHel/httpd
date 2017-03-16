@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/FriggaHel/httpd/version"
 	log "github.com/Sirupsen/logrus"
 	"github.com/containous/flaeg"
 	"github.com/containous/staert"
@@ -19,11 +20,12 @@ func main() {
 			log.FieldKeyTime:  "@timestamp",
 		},
 	})
+	log.Info(fmt.Sprintf("Booting httpd %s (%s) - Date: %s)", version.Version, version.Codename, version.BuildDate))
 	webServerConfiguration := NewWebServerConfiguration()
 	webServerDefaultPointers := NewWebServerDefaultPointers()
 	webServerCmd := &flaeg.Command{
-		Name:                  "WebServer",
-		Description:           `WebServer`,
+		Name:                  "httpd",
+		Description:           `httpd`,
 		Config:                webServerConfiguration,
 		DefaultPointersConfig: webServerDefaultPointers,
 		Run: func() error {
@@ -40,7 +42,7 @@ func main() {
 	f.AddParser(reflect.TypeOf(ProxyRoutes{}), &ProxyRoutes{})
 	f.AddParser(reflect.TypeOf(PreInitCmds{}), &PreInitCmds{})
 
-	toml := staert.NewTomlSource("webserver", []string{"./"})
+	toml := staert.NewTomlSource("httpd", []string{webServerConfiguration.ConfigFile, "./"})
 
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)

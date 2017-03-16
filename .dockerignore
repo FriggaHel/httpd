@@ -1,0 +1,8 @@
+LICENSE
+README.md
+glide.*
+*.go
+*.toml
+vendor/
+.git
+.gitignore
