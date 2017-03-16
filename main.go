@@ -42,7 +42,7 @@ func main() {
 	f.AddParser(reflect.TypeOf(ProxyRoutes{}), &ProxyRoutes{})
 	f.AddParser(reflect.TypeOf(PreInitCmds{}), &PreInitCmds{})
 
-	toml := staert.NewTomlSource("httpd", []string{webServerConfiguration.ConfigFile, "./"})
+	toml := staert.NewTomlSource("httpd", []string{"/etc/", "."})
 
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)
