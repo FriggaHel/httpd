@@ -37,11 +37,14 @@ func main() {
 	f.AddParser(reflect.TypeOf(ConsulConf{}), &ConsulConf{})
 	f.AddParser(reflect.TypeOf(ConsulTags{}), &ConsulTags{})
 	f.AddParser(reflect.TypeOf(TagsOrigin{}), &TagsOrigin{})
-	f.AddParser(reflect.TypeOf([]ProxyRoute{}), &ProxyRoutesValue{})
-	f.AddParser(reflect.TypeOf([]PreInitCmd{}), &PreInitCmdsValue{})
+	f.AddParser(reflect.TypeOf(ProxyRoutes{}), &ProxyRoutes{})
+	f.AddParser(reflect.TypeOf(PreInitCmds{}), &PreInitCmds{})
+
+	toml := staert.NewTomlSource("webserver", []string{"./"})
 
 	s := staert.NewStaert(webServerCmd)
 	s.AddSource(f)
+	s.AddSource(toml)
 	if _, err := s.LoadConfig(); err != nil {
 		log.Error(fmt.Sprintf("Error running webserver: %s", err))
 		os.Exit(-1)
@@ -63,7 +66,7 @@ func run(webServerConfiguration *WebServerConfiguration) {
 			}).Error(fmt.Sprintf("Failed to boot: %s", r))
 		}
 	}()
-	for _, x := range webServerConfiguration.PreInitCmd {
+	for _, x := range webServerConfiguration.PreInitCmds {
 		log.Info(fmt.Sprintf("[pre-init] Running '%s'", x.Command))
 		params := strings.Split(x.Command, " ")
 		cmd := exec.Command(params[0])

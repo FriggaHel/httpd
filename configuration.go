@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -14,37 +15,50 @@ type WebServerConfiguration struct {
 }
 
 type GlobalConfiguration struct {
-	Debug       bool         `description:"Enable Debug"`
-	AngularMode bool         `description:"AngularMode Debug"`
-	LogLevel    string       `description:"Log level"`
-	EntryPoint  *EntryPoint  `description:"EntryPoint"`
-	RootFolder  string       `description:"RootFolder"`
-	ServiceName string       `description:"ServiceName"`
-	Consul      *ConsulConf  `description:"All config around consul"`
-	TagsOrigin  *TagsOrigin  `description:"Configuration of origin of tags (overrides commandlinet tags)"`
-	ProxyRoutes []ProxyRoute `description:"Path to proxify (ex: /api/)"`
-	PreInitCmd  []PreInitCmd `description:"PreInit commands to run before serving"`
+	Debug       bool        `description:"Enable Debug"`
+	AngularMode bool        `description:"AngularMode Debug"`
+	LogLevel    string      `description:"Log level"`
+	EntryPoint  *EntryPoint `description:"EntryPoint"`
+	RootFolder  string      `description:"RootFolder"`
+	ServiceName string      `description:"ServiceName"`
+	Consul      *ConsulConf `description:"All config around consul"`
+	TagsOrigin  *TagsOrigin `description:"Configuration of origin of tags (overrides commandlinet tags)"`
+	ProxyRoutes ProxyRoutes `description:"Path to proxify (ex: /api/)"`
+	PreInitCmds PreInitCmds `description:"PreInit commands to run before serving"`
 }
 
 // PreInitCmds
-type PreInitCmdsValue []PreInitCmd
+type PreInitCmds map[string]*PreInitCmd
 
-func (p *PreInitCmdsValue) Get() interface{} {
+func (p *PreInitCmds) Get() interface{} {
 	return p
 }
 
-func (p *PreInitCmdsValue) Set(s string) error {
-	*p = append(*p, PreInitCmd{
-		Command: s,
-	})
+func (p *PreInitCmds) Set(s string) error {
+	regex := regexp.MustCompile("Name:(?P<Name>\\S*)\\s*Command:(?P<Command>.*)")
+	match := regex.FindAllStringSubmatch(s, -1)
+	if match == nil {
+		return errors.New("Bad PreInitCmds format: " + s)
+	}
+	matchResult := match[0]
+	result := make(map[string]string)
+	for i, name := range regex.SubexpNames() {
+		if i != 0 {
+			result[name] = matchResult[i]
+		}
+	}
+	c := &PreInitCmd{
+		Command: result["Command"],
+	}
+	(*p)[result["Name"]] = c
 	return nil
 }
 
-func (p *PreInitCmdsValue) SetValue(val interface{}) {
-	*p = PreInitCmdsValue(val.([]PreInitCmd))
+func (p *PreInitCmds) SetValue(val interface{}) {
+	*p = PreInitCmds(val.(PreInitCmds))
 }
 
-func (p *PreInitCmdsValue) String() string {
+func (p *PreInitCmds) String() string {
 	return fmt.Sprintf("%+v", *p)
 }
 
@@ -80,20 +94,27 @@ func (pr *ProxyRoute) Get() interface{} {
 }
 
 func (pr *ProxyRoute) Set(s string) error {
-	segs := strings.Split(s, "|")
-	if len(segs) != 5 {
-		log.Warning(fmt.Sprintf("Invalid format of ProxyRoute: Expected 5 chunks, got %d", len(segs)))
-		panic("Invalid format of ProxyRoute")
+	regex := regexp.MustCompile("Path:(?P<Path>\\S*)\\s*Scheme:(?P<Scheme>\\S*)\\s*Host:(?P<Host>\\S*)\\s*StripPath:(?P<StripPath>\\S*)\\s*PrefixPath:(?P<PrefixPath>\\S*)")
+	match := regex.FindAllStringSubmatch(s, -1)
+	if match == nil {
+		return errors.New("Bad ProxyRoutes format: " + s)
 	}
-	stripPath, err := strconv.ParseBool(segs[3])
+	matchResult := match[0]
+	result := make(map[string]string)
+	for i, name := range regex.SubexpNames() {
+		if i != 0 {
+			result[name] = matchResult[i]
+		}
+	}
+	stripPath, err := strconv.ParseBool(result["StripPath"])
 	if err != nil {
-		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", segs[0]))
+		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", result["StripPath"]))
 	}
-	pr.Path = segs[0]
-	pr.Scheme = segs[1]
-	pr.Host = segs[2]
+	pr.Path = result["Path"]
+	pr.Scheme = result["Scheme"]
+	pr.Host = result["Host"]
 	pr.StripPath = stripPath
-	pr.PrefixPath = segs[4]
+	pr.PrefixPath = result["PrefixPath"]
 	return nil
 }
 
@@ -102,39 +123,46 @@ func (to *ProxyRoute) String() string {
 }
 
 // Proxy Routes
-type ProxyRoutesValue []ProxyRoute
+type ProxyRoutes map[string]*ProxyRoute
 
-func (pr *ProxyRoutesValue) Get() interface{} {
+func (pr *ProxyRoutes) Get() interface{} {
 	return pr
 }
 
-func (pr *ProxyRoutesValue) Set(s string) error {
-	segs := strings.Split(s, "|")
-	if len(segs) != 5 {
-		log.Warning(fmt.Sprintf("Invalid format of ProxyRoute: Expected 5 chunks, got %d", len(segs)))
-		panic("Invalid format of ProxyRoute")
+func (pr *ProxyRoutes) Set(s string) error {
+	regex := regexp.MustCompile("Name:(?P<Name>\\S*)\\s*Path:(?P<Path>\\S*)\\s*Scheme:(?P<Scheme>\\S*)\\s*Host:(?P<Host>\\S*)\\s*StripPath:(?P<StripPath>\\S*)\\s*PrefixPath:(?P<PrefixPath>\\S*)")
+	match := regex.FindAllStringSubmatch(s, -1)
+	if match == nil {
+		return errors.New("Bad ProxyRoute format: " + s)
 	}
-	stripPath, err := strconv.ParseBool(segs[3])
+	matchResult := match[0]
+	result := make(map[string]string)
+	for i, name := range regex.SubexpNames() {
+		if i != 0 {
+			result[name] = matchResult[i]
+		}
+	}
+	stripPath, err := strconv.ParseBool(result["StripPath"])
 	if err != nil {
-		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", segs[0]))
+		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", result["StripPath"]))
 	}
-	r := ProxyRoute{
-		Path:       segs[0],
-		Scheme:     segs[1],
-		Host:       segs[2],
+	r := &ProxyRoute{
+		Path:       result["Path"],
+		Scheme:     result["Scheme"],
+		Host:       result["Host"],
 		StripPath:  stripPath,
-		PrefixPath: segs[4],
+		PrefixPath: result["PrefixPath"],
 	}
-	*pr = append(*pr, r)
+	(*pr)[result["Name"]] = r
 	return nil
 }
 
-func (to *ProxyRoutesValue) String() string {
+func (to *ProxyRoutes) String() string {
 	return fmt.Sprintf("%+v", *to)
 }
 
-func (to *ProxyRoutesValue) SetValue(val interface{}) {
-	*to = ProxyRoutesValue(val.([]ProxyRoute))
+func (to *ProxyRoutes) SetValue(val interface{}) {
+	*to = ProxyRoutes(val.(ProxyRoutes))
 }
 
 // Tags Origin
