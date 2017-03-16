@@ -28,6 +28,10 @@ type GlobalConfiguration struct {
 }
 
 // PreInitCmds
+type PreInitCmd struct {
+	Command string
+}
+
 type PreInitCmds map[string]*PreInitCmd
 
 func (p *PreInitCmds) Get() interface{} {
@@ -62,24 +66,6 @@ func (p *PreInitCmds) String() string {
 	return fmt.Sprintf("%+v", *p)
 }
 
-// PreInitCmd
-type PreInitCmd struct {
-	Command string
-}
-
-func (p *PreInitCmd) Get() interface{} {
-	return p
-}
-
-func (p *PreInitCmd) Set(s string) error {
-	p.Command = s
-	return nil
-}
-
-func (p *PreInitCmd) String() string {
-	return p.Command
-}
-
 // Proxy Routes
 type ProxyRoute struct {
 	Path       string `description:"Path to proxify"`
@@ -89,40 +75,6 @@ type ProxyRoute struct {
 	PrefixPath string `description:"Add prefix to backend URI"`
 }
 
-func (pr *ProxyRoute) Get() interface{} {
-	return pr
-}
-
-func (pr *ProxyRoute) Set(s string) error {
-	regex := regexp.MustCompile("Path:(?P<Path>\\S*)\\s*Scheme:(?P<Scheme>\\S*)\\s*Host:(?P<Host>\\S*)\\s*StripPath:(?P<StripPath>\\S*)\\s*PrefixPath:(?P<PrefixPath>\\S*)")
-	match := regex.FindAllStringSubmatch(s, -1)
-	if match == nil {
-		return errors.New("Bad ProxyRoutes format: " + s)
-	}
-	matchResult := match[0]
-	result := make(map[string]string)
-	for i, name := range regex.SubexpNames() {
-		if i != 0 {
-			result[name] = matchResult[i]
-		}
-	}
-	stripPath, err := strconv.ParseBool(result["StripPath"])
-	if err != nil {
-		log.Warning(fmt.Sprintf("[proxy] %s: Invalid StripPath value, defaulting to false", result["StripPath"]))
-	}
-	pr.Path = result["Path"]
-	pr.Scheme = result["Scheme"]
-	pr.Host = result["Host"]
-	pr.StripPath = stripPath
-	pr.PrefixPath = result["PrefixPath"]
-	return nil
-}
-
-func (to *ProxyRoute) String() string {
-	return fmt.Sprintf("%+v", *to)
-}
-
-// Proxy Routes
 type ProxyRoutes map[string]*ProxyRoute
 
 func (pr *ProxyRoutes) Get() interface{} {

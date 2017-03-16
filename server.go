@@ -153,7 +153,7 @@ func (server *WebServer) RegisterConsul() bool {
 
 func (server *WebServer) Run() {
 	// Prepare Proxified stuff
-	for _, pr := range server.Config.ProxyRoutes {
+	for k, pr := range server.Config.ProxyRoutes {
 		d := &httputil.ReverseProxy{
 			Director: func(req *http.Request) {
 				newUrl := req.URL.Path
@@ -163,14 +163,14 @@ func (server *WebServer) Run() {
 				if pr.PrefixPath != "" {
 					newUrl = pr.PrefixPath + newUrl
 				}
-				log.Info(fmt.Sprintf("[proxy] %s to %s://%s/%s", req.URL.Path, pr.Scheme, pr.Host, newUrl))
+				log.Info(fmt.Sprintf("[proxy][%s] %s to %s://%s/%s", k, req.URL.Path, pr.Scheme, pr.Host, newUrl))
 				req.URL.Path = newUrl
 				req.URL.Scheme = pr.Scheme
 				req.URL.Host = pr.Host
 			},
 		}
 		server.Proxies[pr.Path] = d
-		log.Info(fmt.Sprintf("[proxy] %s will be forworded to %s://%s/%s", pr.Path, pr.Scheme, pr.Host, pr.PrefixPath))
+		log.Info(fmt.Sprintf("[proxy][%s] %s will be forworded to %s://%s/%s", k, pr.Path, pr.Scheme, pr.Host, pr.PrefixPath))
 	}
 
 	// Handle Static stuff
